@@ -1,15 +1,23 @@
 package dev.onyango.permission_service.controller;
 
+import com.authzed.api.v1.ReflectSchemaResponse;
+import com.authzed.api.v1.ReflectionPermission;
+import com.authzed.api.v1.ReflectionRelation;
+import dev.onyango.permission_service.dto.SchemaDefinitionDto;
 import dev.onyango.permission_service.service.SchemaService;
 import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/schema")
@@ -20,6 +28,11 @@ public class SchemaController {
 
     public SchemaController(SchemaService schemaService) {
         this.schemaService = schemaService;
+    }
+
+    @GetMapping("/reflect")
+    public List<SchemaDefinitionDto> reflectSchema() {
+        return schemaService.reflectSchema();
     }
 
     @PostMapping
