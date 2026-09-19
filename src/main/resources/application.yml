@@ -1,0 +1,4 @@
+spicedb:
+  target: localhost:50051
+  token: somerandomdevkey
+  use-tls: false

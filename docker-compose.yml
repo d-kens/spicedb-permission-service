@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: spicedb
+      MYSQL_USER: spicedb
+      MYSQL_PASSWORD: spicedbpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: authzed/spicedb:latest
+    command: "migrate head"
+    restart: "on-failure"
+    environment:
+      SPICEDB_DATASTORE_ENGINE: mysql
+      SPICEDB_DATASTORE_CONN_URI: "spicedb:spicedbpass@tcp(mysql:3306)/spicedb?parseTime=true"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  spicedb:
+    image: authzed/spicedb:latest
+    command: "serve"
+    restart: always
+    environment:
+      SPICEDB_GRPC_PRESHARED_KEY: "somerandomdevkey"
+      SPICEDB_DATASTORE_ENGINE: mysql
+      SPICEDB_DATASTORE_CONN_URI: "spicedb:spicedbpass@tcp(mysql:3306)/spicedb?parseTime=true"
+    ports:
+      - "50051:50051"   # gRPC
+      - "8443:8443"     # HTTP API
+      - "9090:9090"     # metrics
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  mysql_data:
