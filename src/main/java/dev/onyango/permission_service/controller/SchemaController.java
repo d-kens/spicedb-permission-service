@@ -1,8 +1,5 @@
 package dev.onyango.permission_service.controller;
 
-import com.authzed.api.v1.ReflectSchemaResponse;
-import com.authzed.api.v1.ReflectionPermission;
-import com.authzed.api.v1.ReflectionRelation;
 import dev.onyango.permission_service.dto.SchemaDefinitionDto;
 import dev.onyango.permission_service.service.SchemaService;
 import io.grpc.StatusRuntimeException;
@@ -15,9 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/schema")

@@ -1,6 +1,6 @@
 package dev.onyango.permission_service.service;
 
-import com.authzed.api.v1.*;
+import dev.onyango.permission_service.spicedb.SpiceDbClient;
 import dev.onyango.permission_service.dto.SchemaDefinitionDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,25 +17,18 @@ public class SchemaService {
     private static final Logger log = LoggerFactory.getLogger(SchemaService.class);
     private static final String SCHEMA_PATH = "schema/schema.zed";
 
-    private final SchemaServiceGrpc.SchemaServiceBlockingStub schemaStub;
+    private final SpiceDbClient spiceDbClient;
 
-    public SchemaService(SchemaServiceGrpc.SchemaServiceBlockingStub schemaStub) {
-        this.schemaStub = schemaStub;
+    public SchemaService(SpiceDbClient spiceDbClient) {
+        this.spiceDbClient = spiceDbClient;
     }
 
     public List<SchemaDefinitionDto> reflectSchema() {
-        ReflectSchemaRequest request = ReflectSchemaRequest.newBuilder()
-                // Fully consistent: always read the latest committed schema.
-                .setConsistency(Consistency.newBuilder().setFullyConsistent(true).build())
-                .build();
-
-        ReflectSchemaResponse response = schemaStub.reflectSchema(request);
-
-        return response.getDefinitionsList().stream()
+        return spiceDbClient.reflectSchema().stream()
                 .map(def -> new SchemaDefinitionDto(
-                        def.getName(),
-                        def.getRelationsList().stream().map(ReflectionRelation::getName).toList(),
-                        def.getPermissionsList().stream().map(ReflectionPermission::getName).toList()
+                        def.name(),
+                        def.relations(),
+                        def.permissions()
                 ))
                 .toList();
     }
@@ -46,11 +39,7 @@ public class SchemaService {
             schema = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
 
-        schemaStub.writeSchema(
-                WriteSchemaRequest.newBuilder()
-                        .setSchema(schema)
-                        .build()
-        );
+        spiceDbClient.writeSchema(schema);
         log.info("Applied schema from {}", SCHEMA_PATH);
     }
 }

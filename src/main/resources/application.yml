@@ -1,4 +1,3 @@
-spicedb:
+authzed:
   target: localhost:50051
-  token: somerandomdevkey
-  use-tls: false
+  token: foobar
