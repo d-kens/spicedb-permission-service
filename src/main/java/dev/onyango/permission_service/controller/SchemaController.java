@@ -1,7 +1,7 @@
 package dev.onyango.permission_service.controller;
 
-import dev.onyango.permission_service.dto.SchemaDefinitionDto;
 import dev.onyango.permission_service.service.SchemaService;
+import dev.onyango.permission_service.spicedb.SchemaDefinition;
 import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +26,7 @@ public class SchemaController {
     }
 
     @GetMapping("/reflect")
-    public List<SchemaDefinitionDto> reflectSchema() {
+    public List<SchemaDefinition> reflectSchema() {
         return schemaService.reflectSchema();
     }
 

@@ -1,7 +1,7 @@
 package dev.onyango.permission_service.service;
 
+import dev.onyango.permission_service.spicedb.SchemaDefinition;
 import dev.onyango.permission_service.spicedb.SpiceDbClient;
-import dev.onyango.permission_service.dto.SchemaDefinitionDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -23,14 +23,8 @@ public class SchemaService {
         this.spiceDbClient = spiceDbClient;
     }
 
-    public List<SchemaDefinitionDto> reflectSchema() {
-        return spiceDbClient.reflectSchema().stream()
-                .map(def -> new SchemaDefinitionDto(
-                        def.name(),
-                        def.relations(),
-                        def.permissions()
-                ))
-                .toList();
+    public List<SchemaDefinition> reflectSchema() {
+        return spiceDbClient.reflectSchema();
     }
 
     public void applySchemaFromResources() throws IOException {
