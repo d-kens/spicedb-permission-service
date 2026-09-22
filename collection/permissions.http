@@ -44,7 +44,7 @@ Content-Type: application/json
 
 [
   {
-    "resourceType": "",
+    "resourceType": "document",
     "resourceId": "1",
     "relation": "viewer",
     "subjectType": "user",
