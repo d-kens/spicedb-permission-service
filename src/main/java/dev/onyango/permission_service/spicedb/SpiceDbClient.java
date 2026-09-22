@@ -1,13 +1,6 @@
 package dev.onyango.permission_service.spicedb;
 
-import com.authzed.api.v1.Consistency;
-import com.authzed.api.v1.PermissionsServiceGrpc;
-import com.authzed.api.v1.ReflectSchemaRequest;
-import com.authzed.api.v1.ReflectSchemaResponse;
-import com.authzed.api.v1.ReflectionPermission;
-import com.authzed.api.v1.ReflectionRelation;
-import com.authzed.api.v1.SchemaServiceGrpc;
-import com.authzed.api.v1.WriteSchemaRequest;
+import com.authzed.api.v1.*;
 import com.authzed.grpcutil.BearerToken;
 import io.grpc.ManagedChannel;
 import jakarta.annotation.PreDestroy;
@@ -43,8 +36,61 @@ public class SpiceDbClient {
         spiceDbChannel.shutdown();
     }
 
-    public String writeRelationship(Resource resource, String relation, Subject subject) {
-        return "";
+    public String writeRelationships(List<RelationshipWrite> writes) {
+
+        List<RelationshipUpdate> relationshipUpdates = writes.stream()
+                .map(this::toRelationshipUpdate)
+                .toList();
+
+        WriteRelationshipsRequest request = WriteRelationshipsRequest.newBuilder()
+                .addAllUpdates(relationshipUpdates)
+                .build();
+
+        WriteRelationshipsResponse response = permissionsServiceStub.writeRelationships(request);
+
+        return response.getWrittenAt().getToken();
+    }
+
+    private RelationshipUpdate toRelationshipUpdate(RelationshipWrite write) {
+        Resource resource = write.resource();
+        Subject subject = write.subject();
+
+        ObjectReference objectReference = ObjectReference
+                .newBuilder()
+                .setObjectType(resource.type())
+                .setObjectId(resource.id())
+                .build();
+
+        ObjectReference subjectObjectReference = ObjectReference.newBuilder()
+                .setObjectType(subject.type())
+                .setObjectId(subject.id())
+                .build();
+
+        SubjectReference subjectReference = SubjectReference
+                .newBuilder()
+                .setObject(subjectObjectReference)
+                .setOptionalRelation(subject.optionalRelation() != null ? subject.optionalRelation() : "")
+                .build();
+
+        Relationship relationship = Relationship
+                .newBuilder()
+                .setResource(objectReference)
+                .setRelation(write.relation())
+                .setSubject(subjectReference)
+                .build();
+
+        return RelationshipUpdate
+                .newBuilder()
+                .setOperation(toOperation(write.operation()))
+                .setRelationship(relationship)
+                .build();
+    }
+
+    private RelationshipUpdate.Operation toOperation(RelationshipWrite.Operation operation) {
+        return switch (operation) {
+            case CREATE_UPDATE -> RelationshipUpdate.Operation.OPERATION_TOUCH;
+            case DELETE -> RelationshipUpdate.Operation.OPERATION_DELETE;
+        };
     }
 
     public List<SchemaDefinition> reflectSchema() {
