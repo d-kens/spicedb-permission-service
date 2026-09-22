@@ -1,6 +1,19 @@
 package dev.onyango.permission_service.spicedb;
 
-import com.authzed.api.v1.*;
+import com.authzed.api.v1.Consistency;
+import com.authzed.api.v1.ObjectReference;
+import com.authzed.api.v1.PermissionsServiceGrpc;
+import com.authzed.api.v1.ReflectSchemaRequest;
+import com.authzed.api.v1.ReflectSchemaResponse;
+import com.authzed.api.v1.ReflectionPermission;
+import com.authzed.api.v1.ReflectionRelation;
+import com.authzed.api.v1.Relationship;
+import com.authzed.api.v1.RelationshipUpdate;
+import com.authzed.api.v1.SchemaServiceGrpc;
+import com.authzed.api.v1.SubjectReference;
+import com.authzed.api.v1.WriteRelationshipsRequest;
+import com.authzed.api.v1.WriteRelationshipsResponse;
+import com.authzed.api.v1.WriteSchemaRequest;
 import com.authzed.grpcutil.BearerToken;
 import io.grpc.ManagedChannel;
 import jakarta.annotation.PreDestroy;

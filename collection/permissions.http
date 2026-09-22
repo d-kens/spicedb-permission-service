@@ -1,0 +1,53 @@
+@host = http://localhost:8080
+
+### Assign permissions (create/update) - POST /permissions
+POST {{host}}/permissions
+Content-Type: application/json
+
+[
+  {
+    "resourceType": "document",
+    "resourceId": "1",
+    "relation": "viewer",
+    "subjectType": "user",
+    "subjectId": "123",
+    "subjectRelation": null
+  },
+  {
+    "resourceType": "document",
+    "resourceId": "1",
+    "relation": "editor",
+    "subjectType": "user",
+    "subjectId": "456",
+    "subjectRelation": null
+  }
+]
+
+### Revoke permissions - DELETE /permissions
+DELETE {{host}}/permissions
+Content-Type: application/json
+
+[
+  {
+    "resourceType": "document",
+    "resourceId": "1",
+    "relation": "viewer",
+    "subjectType": "user",
+    "subjectId": "123",
+    "subjectRelation": null
+  }
+]
+
+### Assign permission - validation error (missing required fields)
+POST {{host}}/permissions
+Content-Type: application/json
+
+[
+  {
+    "resourceType": "",
+    "resourceId": "1",
+    "relation": "viewer",
+    "subjectType": "user",
+    "subjectId": "123"
+  }
+]
