@@ -1,13 +1,12 @@
 package dev.onyango.permission_service.service;
 
-import dev.onyango.permission_service.spicedb.RelationshipWrite;
+import dev.onyango.permission_service.dto.PermissionCheckItem;
+import dev.onyango.permission_service.dto.PermissionCheckResultItem;
 import dev.onyango.permission_service.spicedb.Resource;
 import dev.onyango.permission_service.spicedb.SpiceDbClient;
 import dev.onyango.permission_service.dto.PermissionAssignment;
 import dev.onyango.permission_service.spicedb.Subject;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class PermissionService {
@@ -18,23 +17,23 @@ public class PermissionService {
         this.spiceDbClient = spiceDbClient;
     }
 
-    public String assignPermission(List<PermissionAssignment> requests) {
-        var writes = requests.stream()
-                .map(request -> toWrite(request, RelationshipWrite.Operation.CREATE_UPDATE))
-                .toList();
-        return spiceDbClient.writeRelationships(writes);
+    public PermissionCheckResultItem checkPermission(PermissionCheckItem item) {
+        var resource = new Resource(item.resourceType(), item.resourceId());
+        var subject = new Subject(item.subjectType(), item.subjectId(), null);
+        boolean authorized = spiceDbClient.checkPermission(resource, item.permission(), subject);
+        return new PermissionCheckResultItem(
+                item.resourceType(),
+                item.resourceId(),
+                item.permission(),
+                item.subjectType(),
+                item.subjectId(),
+                authorized
+        );
     }
 
-    public String revokePermission(List<PermissionAssignment> requests) {
-        var writes = requests.stream()
-                .map(request -> toWrite(request, RelationshipWrite.Operation.DELETE))
-                .toList();
-        return spiceDbClient.writeRelationships(writes);
-    }
-
-    private RelationshipWrite toWrite(PermissionAssignment request, RelationshipWrite.Operation operation) {
+    public String assignPermission(PermissionAssignment request) {
         var resource = new Resource(request.resourceType(), request.resourceId());
         var subject = new Subject(request.subjectType(), request.subjectId(), request.subjectRelation());
-        return new RelationshipWrite(resource, request.relation(), subject, operation);
+        return spiceDbClient.writeRelationships(resource, request.relation(), subject);
     }
 }

@@ -23,6 +23,22 @@ Content-Type: application/json
   }
 ]
 
+### Assign permission to a subject set (subjectRelation set) - POST /permissions
+# Grants document:1#viewer to every member of group:engineering (group:engineering#member)
+POST {{host}}/permissions
+Content-Type: application/json
+
+[
+  {
+    "resourceType": "document",
+    "resourceId": "1",
+    "relation": "viewer",
+    "subjectType": "group",
+    "subjectId": "engineering",
+    "subjectRelation": "member"
+  }
+]
+
 ### Revoke permissions - DELETE /permissions
 DELETE {{host}}/permissions
 Content-Type: application/json
@@ -51,3 +67,15 @@ Content-Type: application/json
     "subjectId": "123"
   }
 ]
+
+### Check permission - POST /permissions/check
+POST {{host}}/permissions/check
+Content-Type: application/json
+
+{
+  "resourceType": "payer",
+  "resourceId": "123",
+  "permission": "view_payer",
+  "subjectType": "user",
+  "subjectId": "alice"
+}

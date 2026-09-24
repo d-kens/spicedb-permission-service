@@ -1,31 +1,23 @@
 package dev.onyango.permission_service.spicedb;
 
-import com.authzed.api.v1.Consistency;
-import com.authzed.api.v1.ObjectReference;
-import com.authzed.api.v1.PermissionsServiceGrpc;
-import com.authzed.api.v1.ReflectSchemaRequest;
-import com.authzed.api.v1.ReflectSchemaResponse;
-import com.authzed.api.v1.ReflectionPermission;
-import com.authzed.api.v1.ReflectionRelation;
-import com.authzed.api.v1.Relationship;
-import com.authzed.api.v1.RelationshipUpdate;
-import com.authzed.api.v1.SchemaServiceGrpc;
-import com.authzed.api.v1.SubjectReference;
-import com.authzed.api.v1.WriteRelationshipsRequest;
-import com.authzed.api.v1.WriteRelationshipsResponse;
-import com.authzed.api.v1.WriteSchemaRequest;
+import com.authzed.api.v1.*;
 import com.authzed.grpcutil.BearerToken;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.TextFormat;
 import io.grpc.ManagedChannel;
+import io.grpc.StatusRuntimeException;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class SpiceDbClient {
     private static final Logger log = LoggerFactory.getLogger(SpiceDbClient.class);
+    private static final long CHECK_DEADLINE_SECONDS = 2;
 
     private final ManagedChannel spiceDbChannel;
     private final PermissionsServiceGrpc.PermissionsServiceBlockingStub permissionsServiceStub;
@@ -49,61 +41,60 @@ public class SpiceDbClient {
         spiceDbChannel.shutdown();
     }
 
-    public String writeRelationships(List<RelationshipWrite> writes) {
+    public boolean checkPermission(Resource resource, String permission, Subject subject) {
+        CheckPermissionRequest request = CheckPermissionRequest
+                .newBuilder()
+                .setConsistency(Consistency.newBuilder().setFullyConsistent(true).build())
+                .setResource(ObjectReference.newBuilder().setObjectType(resource.type()).setObjectId(resource.id()).build())
+                .setPermission(permission)
+                .setSubject(SubjectReference.newBuilder()
+                        .setObject(ObjectReference.newBuilder().setObjectType(subject.type()).setObjectId(subject.id()))
+                        .setOptionalRelation(subject.optionalRelation() != null ? subject.optionalRelation() : ""))
+                .build();
 
-        List<RelationshipUpdate> relationshipUpdates = writes.stream()
-                .map(this::toRelationshipUpdate)
-                .toList();
+        CheckPermissionResponse response = permissionsServiceStub
+                .withDeadlineAfter(CHECK_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                .checkPermission(request);
 
+        boolean allowed = response.getPermissionship() == CheckPermissionResponse.Permissionship.PERMISSIONSHIP_HAS_PERMISSION;
+        log.debug("Checked {} on {}:{} for {}:{} -> {}",
+                permission, resource.type(), resource.id(), subject.type(), subject.id(), response.getPermissionship());
+
+        return allowed;
+    }
+
+    public String writeRelationships(Resource resource, String relation, Subject subject) {
         WriteRelationshipsRequest request = WriteRelationshipsRequest.newBuilder()
-                .addAllUpdates(relationshipUpdates)
+                .addUpdates(RelationshipUpdate.newBuilder()
+                        .setOperation(RelationshipUpdate.Operation.OPERATION_CREATE)
+                        .setRelationship(Relationship.newBuilder()
+                                .setResource(ObjectReference.newBuilder().setObjectType(resource.type()).setObjectId(resource.id()))
+                                .setRelation(relation)
+                                .setSubject(SubjectReference.newBuilder()
+                                        .setObject(ObjectReference.newBuilder().setObjectType(subject.type()).setObjectId(subject.id()))
+                                        .setOptionalRelation(subject.optionalRelation() != null ? subject.optionalRelation() : ""))))
                 .build();
 
-        WriteRelationshipsResponse response = permissionsServiceStub.writeRelationships(request);
-
-        return response.getWrittenAt().getToken();
+        log.debug("WriteRelationships request: {}", toLogString(request));
+        try {
+            WriteRelationshipsResponse response = permissionsServiceStub.writeRelationships(request);
+            log.debug("WriteRelationships response: {}", toLogString(response));
+            String token = response.getWrittenAt().getToken();
+            log.info("Wrote relationship {}:{}#{}@{}:{} -> zedToken {}",
+                    resource.type(), resource.id(), relation, subject.type(), subject.id(), token);
+            return token;
+        } catch (StatusRuntimeException e) {
+            log.warn("Failed to write relationship {}:{}#{}@{}:{} -> {}",
+                    resource.type(), resource.id(), relation, subject.type(), subject.id(), e.getStatus());
+            throw e;
+        }
     }
 
-    private RelationshipUpdate toRelationshipUpdate(RelationshipWrite write) {
-        Resource resource = write.resource();
-        Subject subject = write.subject();
-
-        ObjectReference objectReference = ObjectReference
-                .newBuilder()
-                .setObjectType(resource.type())
-                .setObjectId(resource.id())
-                .build();
-
-        ObjectReference subjectObjectReference = ObjectReference.newBuilder()
-                .setObjectType(subject.type())
-                .setObjectId(subject.id())
-                .build();
-
-        SubjectReference subjectReference = SubjectReference
-                .newBuilder()
-                .setObject(subjectObjectReference)
-                .setOptionalRelation(subject.optionalRelation() != null ? subject.optionalRelation() : "")
-                .build();
-
-        Relationship relationship = Relationship
-                .newBuilder()
-                .setResource(objectReference)
-                .setRelation(write.relation())
-                .setSubject(subjectReference)
-                .build();
-
-        return RelationshipUpdate
-                .newBuilder()
-                .setOperation(toOperation(write.operation()))
-                .setRelationship(relationship)
-                .build();
-    }
-
-    private RelationshipUpdate.Operation toOperation(RelationshipWrite.Operation operation) {
-        return switch (operation) {
-            case CREATE_UPDATE -> RelationshipUpdate.Operation.OPERATION_TOUCH;
-            case DELETE -> RelationshipUpdate.Operation.OPERATION_DELETE;
-        };
+    /**
+     * Renders a protobuf message on a single line, only when debug logging is on.
+     */
+    private static Object toLogString(MessageOrBuilder message) {
+        return log.isDebugEnabled() ? TextFormat.printer().emittingSingleLine(true).printToString(message) : "";
     }
 
     public List<SchemaDefinition> reflectSchema() {
