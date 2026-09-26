@@ -1,6 +1,7 @@
 package dev.onyango.permission_service.service;
 
 import dev.onyango.permission_service.dto.BulkPermissionCheckRequest;
+import dev.onyango.permission_service.dto.LookupResourcesRequest;
 import dev.onyango.permission_service.dto.PermissionCheckRequest;
 import dev.onyango.permission_service.dto.PermissionCheckResponse;
 import dev.onyango.permission_service.spicedb.SpiceDbClient;
@@ -45,6 +46,15 @@ public class PermissionService {
                 bulkPermissionCheckRequest.subjectId(),
                 bulkPermissionCheckRequest.subjectType(),
                 bulkPermissionCheckRequest.items()
+        );
+    }
+
+    public List<String> lookupResources(LookupResourcesRequest lookupResourcesRequest) {
+        return spiceDbClient.lookupResources(
+                lookupResourcesRequest.resourceType(),
+                lookupResourcesRequest.permission(),
+                lookupResourcesRequest.subjectId(),
+                lookupResourcesRequest.subjectType()
         );
     }
 

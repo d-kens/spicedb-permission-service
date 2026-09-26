@@ -8,6 +8,8 @@ import com.authzed.api.v1.CheckPermissionResponse;
 import com.authzed.api.v1.Consistency;
 import com.authzed.api.v1.DeleteRelationshipsRequest;
 import com.authzed.api.v1.DeleteRelationshipsResponse;
+import com.authzed.api.v1.LookupResourcesRequest;
+import com.authzed.api.v1.LookupResourcesResponse;
 import com.authzed.api.v1.ObjectReference;
 import com.authzed.api.v1.PermissionsServiceGrpc;
 import com.authzed.api.v1.Relationship;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +46,8 @@ public class SpiceDbClient {
     private static final long CHECK_DEADLINE_SECONDS = 2;
     // Longer than a single check since one call evaluates many items
     private static final long BULK_CHECK_DEADLINE_SECONDS = 5;
+    // Covers the whole response stream, not each result
+    private static final long LOOKUP_DEADLINE_SECONDS = 5;
 
     private final ManagedChannel spiceDbChannel;
     private final PermissionsServiceGrpc.PermissionsServiceBlockingStub permissionsServiceStub;
@@ -212,6 +217,37 @@ public class SpiceDbClient {
             throw new SpiceDbException(String.format("Failed to delete relationship %s:%s#%s@%s:%s",
                     resourceType, resourceId, relation, subjectType, subjectId), e);
         }
+    }
+
+    /**
+     * Finds the IDs of all resources of the given type on which the subject has the permission.
+     */
+    public List<String> lookupResources(String resourceType, String permission, String subjectId, String subjectType) {
+        LookupResourcesRequest request = LookupResourcesRequest
+                .newBuilder()
+                .setConsistency(Consistency.newBuilder().setFullyConsistent(true).build())
+                .setResourceObjectType(resourceType)
+                .setPermission(permission)
+                .setSubject(SubjectReference.newBuilder().setObject(ObjectReference.newBuilder().setObjectType(subjectType).setObjectId(subjectId).build()).build())
+                .build();
+
+        List<String> resourceIds = new ArrayList<>();
+        // The response is a stream; errors can surface while iterating, so the loop sits inside the try
+        try {
+            Iterator<LookupResourcesResponse> responses = permissionsServiceStub
+                    .withDeadlineAfter(LOOKUP_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                    .lookupResources(request);
+            while (responses.hasNext()) {
+                resourceIds.add(responses.next().getResourceObjectId());
+            }
+        } catch (StatusRuntimeException e) {
+            throw new SpiceDbException(String.format("Failed to look up %s resources with %s for %s:%s",
+                    resourceType, permission, subjectType, subjectId), e);
+        }
+
+        log.debug("Looked up {} {} resources with {} for {}:{}",
+                resourceIds.size(), resourceType, permission, subjectType, subjectId);
+        return resourceIds;
     }
 
     /**

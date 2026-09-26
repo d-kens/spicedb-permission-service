@@ -197,3 +197,15 @@ Content-Type: application/json
   "subjectType": "user",
   "subjectId": "revoke-test"
 }
+
+### Lookup resources - POST /permissions/lookup/resources
+# Returns the IDs of every document user:123 can view (includes "1" from the first assign request)
+POST {{host}}/permissions/lookup/resources
+Content-Type: application/json
+
+{
+  "resourceType": "document",
+  "permission": "view",
+  "subjectType": "user",
+  "subjectId": "123"
+}

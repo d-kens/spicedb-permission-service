@@ -1,6 +1,7 @@
 package dev.onyango.permission_service.controller;
 
 import dev.onyango.permission_service.dto.BulkPermissionCheckRequest;
+import dev.onyango.permission_service.dto.LookupResourcesRequest;
 import dev.onyango.permission_service.dto.PermissionCheckRequest;
 import dev.onyango.permission_service.dto.PermissionCheckResponse;
 import dev.onyango.permission_service.dto.RelationshipRequest;
@@ -42,6 +43,14 @@ public class PermissionController {
             @Valid @RequestBody final BulkPermissionCheckRequest bulkPermissionCheckRequest
     ) {
         return permissionService.checkBulkPermissions(bulkPermissionCheckRequest);
+    }
+
+    @PostMapping("/lookup/resources")
+    @Operation(summary = "Look up resources", description = "Returns the IDs of all resources of a type on which the subject has the permission")
+    public List<String> lookupResources(
+            @Valid @RequestBody final LookupResourcesRequest lookupResourcesRequest
+    ) {
+        return permissionService.lookupResources(lookupResourcesRequest);
     }
 
     @PostMapping
