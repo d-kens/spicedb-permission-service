@@ -1,0 +1,35 @@
+schemaFile: schema.zed
+relationships: |-
+    // Groups: finance includes everyone in analysts
+    group:finance#member@user:fred
+    group:analysts#member@user:ann
+    group:finance#member@group:analysts#member
+
+    // Folders: reports sits inside root
+    folder:root#owner@user:olivia
+    folder:reports#parent@folder:root
+    folder:reports#viewer@group:finance#member
+
+    // Documents
+    document:q3#parent@folder:reports
+    document:q3#editor@user:eddie
+    document:memo#viewer@user:victor
+assertions:
+    assertTrue:
+        # Direct relations, and edit implies view
+        - document:q3#edit@user:eddie
+        - document:q3#view@user:eddie
+        - document:memo#view@user:victor
+        # Folder owner inherits down the parent chain
+        - document:q3#edit@user:olivia
+        # Group viewer on the parent folder, including a nested group
+        - document:q3#view@user:fred
+        - document:q3#view@user:ann
+    assertFalse:
+        # Viewers cannot edit
+        - document:q3#edit@user:fred
+        - document:memo#edit@user:victor
+        # No relationship at all
+        - document:memo#view@user:eddie
+        # Permissions flow down to children, never up to parents
+        - folder:root#view@user:fred

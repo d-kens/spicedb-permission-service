@@ -1,0 +1,33 @@
+name: Validate Permission Schema
+
+# Catches a broken schema, or a change that breaks an expected permission,
+# before it can be deployed.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  ZED_VERSION: 1.2.1
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zed
+        run: |
+          set -euo pipefail
+          # Release assets are always suffixed _gnu or _musl; the runner image is glibc
+          curl -sSfL -o /tmp/zed.tar.gz \
+            "https://github.com/authzed/zed/releases/download/v${ZED_VERSION}/zed_${ZED_VERSION}_linux_amd64_gnu.tar.gz"
+          tar -xzf /tmp/zed.tar.gz -C /tmp zed
+          sudo install -m 0755 /tmp/zed /usr/local/bin/zed
+
+      - name: Validate schema
+        run: zed validate src/main/resources/schema/schema_tests.yaml
