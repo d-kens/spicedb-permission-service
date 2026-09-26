@@ -10,6 +10,7 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.resource.ResourceTransformer;
 
 import java.util.concurrent.TimeUnit;
 
@@ -20,53 +21,61 @@ public class SpiceDbClient {
 
     private final ManagedChannel spiceDbChannel;
     private final PermissionsServiceGrpc.PermissionsServiceBlockingStub permissionsServiceStub;
+    private final ResourceTransformer resourceTransformer;
 
-    public SpiceDbClient(AuthzedConfiguration authzedConfiguration, AuthzedProperties authzedProperties) {
+    public SpiceDbClient(AuthzedConfiguration authzedConfiguration, AuthzedProperties authzedProperties, ResourceTransformer resourceTransformer) {
         this.spiceDbChannel = authzedConfiguration.managedChannel();
         BearerToken credentials = new BearerToken(authzedProperties.getToken());
 
         this.permissionsServiceStub = PermissionsServiceGrpc.newBlockingStub(spiceDbChannel)
                 .withCallCredentials(credentials);
+        this.resourceTransformer = resourceTransformer;
     }
 
-    // Closes the channel cleanly on shutdown instead of leaving the connection to SpiceDB open and dangling
+
     @PreDestroy
     public void shutdown() {
         spiceDbChannel.shutdown();
     }
 
-    public boolean checkPermission(Resource resource, String permission, Subject subject) {
+    public boolean checkPermission(
+            String resourceId, String resourceType, String permission, String subjectId, String subjectType
+    ) {
         CheckPermissionRequest request = CheckPermissionRequest
                 .newBuilder()
                 .setConsistency(Consistency.newBuilder().setFullyConsistent(true).build())
-                .setResource(ObjectReference.newBuilder().setObjectType(resource.type()).setObjectId(resource.id()).build())
+                .setResource(ObjectReference.newBuilder().setObjectType(resourceType).setObjectId(resourceId).build())
                 .setPermission(permission)
-                .setSubject(SubjectReference.newBuilder()
-                        .setObject(ObjectReference.newBuilder().setObjectType(subject.type()).setObjectId(subject.id()))
-                        .setOptionalRelation(subject.optionalRelation() != null ? subject.optionalRelation() : ""))
+                .setSubject(SubjectReference.newBuilder().setObject(ObjectReference.newBuilder().setObjectType(subjectType).setObjectId(subjectId)))
                 .build();
 
-        CheckPermissionResponse response = permissionsServiceStub
-                .withDeadlineAfter(CHECK_DEADLINE_SECONDS, TimeUnit.SECONDS)
-                .checkPermission(request);
+        CheckPermissionResponse response;
+        try {
+            response = permissionsServiceStub
+                    .withDeadlineAfter(CHECK_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                    .checkPermission(request);
+        } catch (StatusRuntimeException e) {
+            throw new SpiceDbException(String.format("Failed to check %s on %s:%s for %s:%s",
+                    permission, resourceType, resourceId, subjectType, subjectId), e);
+        }
 
         boolean allowed = response.getPermissionship() == CheckPermissionResponse.Permissionship.PERMISSIONSHIP_HAS_PERMISSION;
         log.debug("Checked {} on {}:{} for {}:{} -> {}",
-                permission, resource.type(), resource.id(), subject.type(), subject.id(), response.getPermissionship());
+                permission, resourceType, resourceId, subjectType, subjectId, response.getPermissionship());
 
         return allowed;
     }
 
-    public String writeRelationships(Resource resource, String relation, Subject subject) {
+    public String writeRelationships(String resourceId, String resourceType, String relation, String subjectId, String subjectType, String optionalSubjectRelation) {
         WriteRelationshipsRequest request = WriteRelationshipsRequest.newBuilder()
                 .addUpdates(RelationshipUpdate.newBuilder()
                         .setOperation(RelationshipUpdate.Operation.OPERATION_CREATE)
                         .setRelationship(Relationship.newBuilder()
-                                .setResource(ObjectReference.newBuilder().setObjectType(resource.type()).setObjectId(resource.id()))
+                                .setResource(ObjectReference.newBuilder().setObjectType(resourceType).setObjectId(resourceId))
                                 .setRelation(relation)
                                 .setSubject(SubjectReference.newBuilder()
-                                        .setObject(ObjectReference.newBuilder().setObjectType(subject.type()).setObjectId(subject.id()))
-                                        .setOptionalRelation(subject.optionalRelation() != null ? subject.optionalRelation() : ""))))
+                                        .setObject(ObjectReference.newBuilder().setObjectType(subjectType).setObjectId(subjectId))
+                                        .setOptionalRelation(optionalSubjectRelation != null ? optionalSubjectRelation : ""))))
                 .build();
 
         log.debug("WriteRelationships request: {}", toLogString(request));
@@ -75,12 +84,11 @@ public class SpiceDbClient {
             log.debug("WriteRelationships response: {}", toLogString(response));
             String token = response.getWrittenAt().getToken();
             log.info("Wrote relationship {}:{}#{}@{}:{} -> zedToken {}",
-                    resource.type(), resource.id(), relation, subject.type(), subject.id(), token);
+                    resourceType, resourceId, relation, subjectType, subjectId, token);
             return token;
         } catch (StatusRuntimeException e) {
-            log.warn("Failed to write relationship {}:{}#{}@{}:{} -> {}",
-                    resource.type(), resource.id(), relation, subject.type(), subject.id(), e.getStatus());
-            throw e;
+            throw new SpiceDbException(String.format("Failed to write relationship %s:%s#%s@%s:%s",
+                    resourceType, resourceId, relation, subjectType, subjectId), e);
         }
     }
 

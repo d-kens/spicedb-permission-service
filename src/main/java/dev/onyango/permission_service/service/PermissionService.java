@@ -1,11 +1,9 @@
 package dev.onyango.permission_service.service;
 
-import dev.onyango.permission_service.dto.PermissionCheckItem;
-import dev.onyango.permission_service.dto.PermissionCheckResultItem;
-import dev.onyango.permission_service.spicedb.Resource;
+import dev.onyango.permission_service.dto.PermissionCheckRequest;
+import dev.onyango.permission_service.dto.PermissionCheckResponse;
 import dev.onyango.permission_service.spicedb.SpiceDbClient;
-import dev.onyango.permission_service.dto.PermissionAssignment;
-import dev.onyango.permission_service.spicedb.Subject;
+import dev.onyango.permission_service.dto.PermissionAssignmentRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,23 +15,35 @@ public class PermissionService {
         this.spiceDbClient = spiceDbClient;
     }
 
-    public PermissionCheckResultItem checkPermission(PermissionCheckItem item) {
-        var resource = new Resource(item.resourceType(), item.resourceId());
-        var subject = new Subject(item.subjectType(), item.subjectId(), null);
-        boolean authorized = spiceDbClient.checkPermission(resource, item.permission(), subject);
-        return new PermissionCheckResultItem(
-                item.resourceType(),
-                item.resourceId(),
-                item.permission(),
-                item.subjectType(),
-                item.subjectId(),
+    public PermissionCheckResponse checkPermission(PermissionCheckRequest permissionCheckRequest) {
+
+
+        boolean authorized = spiceDbClient.checkPermission(
+                permissionCheckRequest.resourceId(),
+                permissionCheckRequest.resourceType(),
+                permissionCheckRequest.permission(),
+                permissionCheckRequest.subjectId(),
+                permissionCheckRequest.subjectType()
+        );
+
+        return new PermissionCheckResponse(
+                permissionCheckRequest.resourceType(),
+                permissionCheckRequest.resourceId(),
+                permissionCheckRequest.permission(),
+                permissionCheckRequest.subjectType(),
+                permissionCheckRequest.subjectId(),
                 authorized
         );
     }
 
-    public String assignPermission(PermissionAssignment request) {
-        var resource = new Resource(request.resourceType(), request.resourceId());
-        var subject = new Subject(request.subjectType(), request.subjectId(), request.subjectRelation());
-        return spiceDbClient.writeRelationships(resource, request.relation(), subject);
+    public String assignPermission(PermissionAssignmentRequest permissionAssignmentRequest) {
+        return spiceDbClient.writeRelationships(
+                permissionAssignmentRequest.resourceId(),
+                permissionAssignmentRequest.resourceType(),
+                permissionAssignmentRequest.relation(),
+                permissionAssignmentRequest.subjectId(),
+                permissionAssignmentRequest.subjectType(),
+                permissionAssignmentRequest.optionalSubjectRelation()
+        );
     }
 }

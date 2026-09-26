@@ -1,6 +1,6 @@
 package dev.onyango.permission_service.dto;
 
-public record PermissionCheckResultItem(
+public record PermissionCheckResponse(
         String resourceType,
         String resourceId,
         String permission,

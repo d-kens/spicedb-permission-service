@@ -1,8 +1,8 @@
 package dev.onyango.permission_service.controller;
 
-import dev.onyango.permission_service.dto.PermissionCheckItem;
-import dev.onyango.permission_service.dto.PermissionCheckResultItem;
-import dev.onyango.permission_service.dto.PermissionAssignment;
+import dev.onyango.permission_service.dto.PermissionCheckRequest;
+import dev.onyango.permission_service.dto.PermissionCheckResponse;
+import dev.onyango.permission_service.dto.PermissionAssignmentRequest;
 import dev.onyango.permission_service.service.PermissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,15 +25,15 @@ public class PermissionController {
     }
 
     @PostMapping("/check")
-    public PermissionCheckResultItem checkPermission(
-            @Valid @RequestBody final PermissionCheckItem check
+    public PermissionCheckResponse checkPermission(
+            @Valid @RequestBody final PermissionCheckRequest permissionCheckRequest
     ) {
-        return permissionService.checkPermission(check);
+        return permissionService.checkPermission(permissionCheckRequest);
     }
 
     @PostMapping
     @Operation(summary = "Assign permissions", description = "Creates or updates one or more relationships (upsert), written atomically")
-    public String assignPermission(@Valid @RequestBody PermissionAssignment request) {
+    public String assignPermission(@Valid @RequestBody PermissionAssignmentRequest request) {
         return permissionService.assignPermission(request);
     }
 }
