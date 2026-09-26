@@ -1,10 +1,14 @@
 package dev.onyango.permission_service.service;
 
+import dev.onyango.permission_service.dto.BulkPermissionCheckRequest;
 import dev.onyango.permission_service.dto.PermissionCheckRequest;
 import dev.onyango.permission_service.dto.PermissionCheckResponse;
 import dev.onyango.permission_service.spicedb.SpiceDbClient;
 import dev.onyango.permission_service.dto.PermissionAssignmentRequest;
+import dev.onyango.permission_service.dto.ResourcePermissionResult;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class PermissionService {
@@ -33,6 +37,14 @@ public class PermissionService {
                 permissionCheckRequest.subjectType(),
                 permissionCheckRequest.subjectId(),
                 authorized
+        );
+    }
+
+    public List<ResourcePermissionResult> checkBulkPermissions(BulkPermissionCheckRequest bulkPermissionCheckRequest) {
+        return spiceDbClient.checkBulkPermissions(
+                bulkPermissionCheckRequest.subjectId(),
+                bulkPermissionCheckRequest.subjectType(),
+                bulkPermissionCheckRequest.items()
         );
     }
 

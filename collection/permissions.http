@@ -79,3 +79,76 @@ Content-Type: application/json
   "subjectType": "user",
   "subjectId": "alice"
 }
+
+### Check permission - allowed (expects "authorized": true)
+# user:123 is a viewer of document:1 (see the first assign request), so they have view
+POST {{host}}/permissions/check
+Content-Type: application/json
+
+{
+  "resourceType": "document",
+  "resourceId": "1",
+  "permission": "view",
+  "subjectType": "user",
+  "subjectId": "123"
+}
+
+### Check permission - denied (expects "authorized": false)
+# user:789 has no relationship to document:1
+POST {{host}}/permissions/check
+Content-Type: application/json
+
+{
+  "resourceType": "document",
+  "resourceId": "1",
+  "permission": "view",
+  "subjectType": "user",
+  "subjectId": "789"
+}
+
+### Bulk check permissions - POST /permissions/check/bulk
+# Expects document:1 view -> true (user:123 is a viewer), document:2 view -> false (no relationship)
+POST {{host}}/permissions/check/bulk
+Content-Type: application/json
+
+{
+  "subjectType": "user",
+  "subjectId": "123",
+  "items": [
+    {
+      "resourceType": "document",
+      "resourceId": "1",
+      "permission": "view"
+    },
+    {
+      "resourceType": "document",
+      "resourceId": "2",
+      "permission": "view"
+    }
+  ]
+}
+
+### Bulk check permissions - validation error (empty items)
+POST {{host}}/permissions/check/bulk
+Content-Type: application/json
+
+{
+  "subjectType": "user",
+  "subjectId": "123",
+  "items": []
+}
+
+### Bulk check permissions - validation error (item missing permission)
+POST {{host}}/permissions/check/bulk
+Content-Type: application/json
+
+{
+  "subjectType": "user",
+  "subjectId": "123",
+  "items": [
+    {
+      "resourceType": "document",
+      "resourceId": "1"
+    }
+  ]
+}
