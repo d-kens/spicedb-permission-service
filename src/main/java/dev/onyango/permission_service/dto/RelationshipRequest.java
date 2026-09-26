@@ -2,7 +2,7 @@ package dev.onyango.permission_service.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record PermissionAssignmentRequest(
+public record RelationshipRequest(
         @NotBlank(message = "resourceType is required") String resourceType,
         @NotBlank(message = "resourceId is required") String resourceId,
         @NotBlank(message = "relation is required") String relation,

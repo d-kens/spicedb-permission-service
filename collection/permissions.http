@@ -39,20 +39,17 @@ Content-Type: application/json
   }
 ]
 
-### Revoke permissions - DELETE /permissions
+### Revoke permission - DELETE /permissions
 DELETE {{host}}/permissions
 Content-Type: application/json
 
-[
-  {
-    "resourceType": "document",
-    "resourceId": "1",
-    "relation": "viewer",
-    "subjectType": "user",
-    "subjectId": "123",
-    "subjectRelation": null
-  }
-]
+{
+  "resourceType": "document",
+  "resourceId": "1",
+  "relation": "viewer",
+  "subjectType": "user",
+  "subjectId": "123"
+}
 
 ### Assign permission - validation error (missing required fields)
 POST {{host}}/permissions
@@ -151,4 +148,52 @@ Content-Type: application/json
       "resourceId": "1"
     }
   ]
+}
+
+### Revoke flow 1/4 - assign user:revoke-test as viewer of document:42
+POST {{host}}/permissions
+Content-Type: application/json
+
+{
+  "resourceType": "document",
+  "resourceId": "42",
+  "relation": "viewer",
+  "subjectType": "user",
+  "subjectId": "revoke-test"
+}
+
+### Revoke flow 2/4 - check before revoke (expects "authorized": true)
+POST {{host}}/permissions/check
+Content-Type: application/json
+
+{
+  "resourceType": "document",
+  "resourceId": "42",
+  "permission": "view",
+  "subjectType": "user",
+  "subjectId": "revoke-test"
+}
+
+### Revoke flow 3/4 - revoke the viewer relationship
+DELETE {{host}}/permissions
+Content-Type: application/json
+
+{
+  "resourceType": "document",
+  "resourceId": "42",
+  "relation": "viewer",
+  "subjectType": "user",
+  "subjectId": "revoke-test"
+}
+
+### Revoke flow 4/4 - check after revoke (expects "authorized": false)
+POST {{host}}/permissions/check
+Content-Type: application/json
+
+{
+  "resourceType": "document",
+  "resourceId": "42",
+  "permission": "view",
+  "subjectType": "user",
+  "subjectId": "revoke-test"
 }

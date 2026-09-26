@@ -6,10 +6,14 @@ import com.authzed.api.v1.CheckBulkPermissionsResponse;
 import com.authzed.api.v1.CheckPermissionRequest;
 import com.authzed.api.v1.CheckPermissionResponse;
 import com.authzed.api.v1.Consistency;
+import com.authzed.api.v1.DeleteRelationshipsRequest;
+import com.authzed.api.v1.DeleteRelationshipsResponse;
 import com.authzed.api.v1.ObjectReference;
 import com.authzed.api.v1.PermissionsServiceGrpc;
 import com.authzed.api.v1.Relationship;
+import com.authzed.api.v1.RelationshipFilter;
 import com.authzed.api.v1.RelationshipUpdate;
+import com.authzed.api.v1.SubjectFilter;
 import com.authzed.api.v1.SubjectReference;
 import com.authzed.api.v1.WriteRelationshipsRequest;
 import com.authzed.api.v1.WriteRelationshipsResponse;
@@ -24,7 +28,6 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.resource.ResourceTransformer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +47,7 @@ public class SpiceDbClient {
     private final ManagedChannel spiceDbChannel;
     private final PermissionsServiceGrpc.PermissionsServiceBlockingStub permissionsServiceStub;
 
-    public SpiceDbClient(AuthzedConfiguration authzedConfiguration, AuthzedProperties authzedProperties, ResourceTransformer resourceTransformer) {
+    public SpiceDbClient(AuthzedConfiguration authzedConfiguration, AuthzedProperties authzedProperties) {
         this.spiceDbChannel = authzedConfiguration.managedChannel();
         BearerToken credentials = new BearerToken(authzedProperties.getToken());
 
@@ -124,6 +127,9 @@ public class SpiceDbClient {
                     checkBulkPermissionsRequestItems.size(), subjectType, subjectId), e);
         }
 
+        log.debug("Bulk checked {} permissions for {}:{}",
+                checkBulkPermissionsRequestItems.size(), subjectType, subjectId);
+
         // Each pair echoes its request item, so results map back without relying on order
         return response.getPairsList()
                 .stream()
@@ -143,7 +149,7 @@ public class SpiceDbClient {
      *
      * @return the ZedToken of the write, usable for read-after-write consistency
      */
-    public String writeRelationships(String resourceId, String resourceType, String relation, String subjectId, String subjectType, String optionalSubjectRelation) {
+    public String writeRelationship(String resourceId, String resourceType, String relation, String subjectId, String subjectType, String optionalSubjectRelation) {
         WriteRelationshipsRequest request = WriteRelationshipsRequest.newBuilder()
                 .addUpdates(RelationshipUpdate.newBuilder()
                         .setOperation(RelationshipUpdate.Operation.OPERATION_CREATE)
@@ -166,6 +172,44 @@ public class SpiceDbClient {
             return token;
         } catch (StatusRuntimeException e) {
             throw new SpiceDbException(String.format("Failed to write relationship %s:%s#%s@%s:%s",
+                    resourceType, resourceId, relation, subjectType, subjectId), e);
+        }
+    }
+
+    /**
+     * Deletes the relationship between the resource and the subject.
+     *
+     * @return the ZedToken of the delete, usable for read-after-write consistency
+     */
+    public String deleteRelationship(String resourceId, String resourceType, String relation, String subjectId, String subjectType) {
+        DeleteRelationshipsRequest deleteRelationshipsRequest = DeleteRelationshipsRequest
+                .newBuilder()
+                .setRelationshipFilter(
+                        RelationshipFilter
+                                .newBuilder()
+                                .setResourceType(resourceType)
+                                .setOptionalResourceId(resourceId)
+                                .setOptionalRelation(relation)
+                                .setOptionalSubjectFilter(SubjectFilter
+                                        .newBuilder()
+                                        .setSubjectType(subjectType)
+                                        .setOptionalSubjectId(subjectId)
+                                        .build()
+                                )
+                                .build()
+                )
+                .build();
+
+        log.debug("DeleteRelationships request: {}", toLogString(deleteRelationshipsRequest));
+        try {
+            DeleteRelationshipsResponse response = permissionsServiceStub.deleteRelationships(deleteRelationshipsRequest);
+            log.debug("DeleteRelationships response: {}", toLogString(response));
+            String token = response.getDeletedAt().getToken();
+            log.info("Deleted relationship {}:{}#{}@{}:{} -> zedToken {}",
+                    resourceType, resourceId, relation, subjectType, subjectId, token);
+            return token;
+        } catch (StatusRuntimeException e) {
+            throw new SpiceDbException(String.format("Failed to delete relationship %s:%s#%s@%s:%s",
                     resourceType, resourceId, relation, subjectType, subjectId), e);
         }
     }

@@ -4,7 +4,7 @@ import dev.onyango.permission_service.dto.BulkPermissionCheckRequest;
 import dev.onyango.permission_service.dto.PermissionCheckRequest;
 import dev.onyango.permission_service.dto.PermissionCheckResponse;
 import dev.onyango.permission_service.spicedb.SpiceDbClient;
-import dev.onyango.permission_service.dto.PermissionAssignmentRequest;
+import dev.onyango.permission_service.dto.RelationshipRequest;
 import dev.onyango.permission_service.dto.ResourcePermissionResult;
 import org.springframework.stereotype.Service;
 
@@ -48,14 +48,24 @@ public class PermissionService {
         );
     }
 
-    public String assignPermission(PermissionAssignmentRequest permissionAssignmentRequest) {
-        return spiceDbClient.writeRelationships(
-                permissionAssignmentRequest.resourceId(),
-                permissionAssignmentRequest.resourceType(),
-                permissionAssignmentRequest.relation(),
-                permissionAssignmentRequest.subjectId(),
-                permissionAssignmentRequest.subjectType(),
-                permissionAssignmentRequest.optionalSubjectRelation()
+    public String assignPermission(RelationshipRequest relationshipRequest) {
+        return spiceDbClient.writeRelationship(
+                relationshipRequest.resourceId(),
+                relationshipRequest.resourceType(),
+                relationshipRequest.relation(),
+                relationshipRequest.subjectId(),
+                relationshipRequest.subjectType(),
+                relationshipRequest.optionalSubjectRelation()
+        );
+    }
+
+    public String revokePermission(RelationshipRequest relationshipRequest) {
+        return spiceDbClient.deleteRelationship(
+                relationshipRequest.resourceId(),
+                relationshipRequest.resourceType(),
+                relationshipRequest.relation(),
+                relationshipRequest.subjectId(),
+                relationshipRequest.subjectType()
         );
     }
 }
